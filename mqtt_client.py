@@ -39,11 +39,12 @@ def on_connect(client, userdata, flags, reason_code, properties):
     Subscribe here so we auto-resubscribe after reconnection.
     """
     if reason_code == 0:
-        logger.info("Connected to MQTT broker")
-        logger.info(f"Subscribing to topic: {MQTT_TOPIC}")
+        logger.info("Connected to mqtt")
+        logger.info(f"Subscribing to {MQTT_TOPIC}")
         client.subscribe(MQTT_TOPIC)
+        logger.info("Subscribed")
     else:
-        logger.error(f"Connection failed with reason code: {reason_code}")
+        logger.error(f"Connection failed ({reason_code})")
 
 
 def on_disconnect(client, userdata, flags, reason_code, properties):
@@ -55,7 +56,8 @@ def on_disconnect(client, userdata, flags, reason_code, properties):
     if reason_code == 0:
         logger.info("Disconnected cleanly")
     else:
-        logger.warning(f"Unexpected disconnect (code {reason_code}), reconnecting...")
+        logger.warning(f"Unexpected disconnect ({reason_code})")
+        logger.warning("Reconnecting")
 
 
 def on_message(client, userdata, msg):
@@ -69,10 +71,17 @@ def on_message(client, userdata, msg):
         payload = json.loads(msg.payload.decode())
         message = payload.get("message", "")
         twitter = payload.get("twitter", "")
-        logger.info(f"Received: {message} / {twitter}")
+        width = max(len(message), len(twitter))
+        logger.info(
+            f"Received message\n"
+            f"┌─{'─' * width}─┐\n"
+            f"│ {message:<{width}} │\n"
+            f"│ {twitter:<{width}} │\n"
+            f"└─{'─' * width}─┘"
+        )
         message_queue.put((message, twitter))
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON received: {e}")
+        logger.error(f"Invalid JSON: {e}")
     except Exception as e:
         logger.error(f"Error processing message: {e}")
 
@@ -101,13 +110,14 @@ def create_client():
 
 def connect(client):
     """Connect to the broker and start the background network loop."""
-    logger.info(f"Connecting to {MQTT_BROKER}:{MQTT_PORT}...")
+    logger.info("Connecting to mqtt")
     client.connect(MQTT_BROKER, MQTT_PORT, keepalive=60)
     client.loop_start()
 
 
 def disconnect(client):
     """Stop the network loop and disconnect cleanly."""
-    logger.info("Disconnecting from MQTT broker...")
+    logger.info("Disconnecting from mqtt")
     client.loop_stop()
     client.disconnect()
+    logger.info("Disconnected from mqtt")

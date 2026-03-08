@@ -60,7 +60,7 @@ def main():
 
     try:
         # Initialize LCD
-        logger.info("Initializing LCD display...")
+        logger.info("Initializing LCD")
         lcd = CharLCD(i2c_expander="PCF8574", address=0x27, cols=COLS, rows=ROWS)
         lcd.clear()
         logger.info("LCD initialized")
@@ -69,29 +69,40 @@ def main():
         client = mqtt_client.create_client()
         mqtt_client.connect(client)
 
-        logger.info("Waiting for messages...")
+        logger.info("Waiting for messages")
 
         # Main loop: pull from queue and display
         while True:
             try:
                 # Block until message available (timeout allows Ctrl+C)
                 message, twitter = mqtt_client.message_queue.get(timeout=1.0)
-                logger.info(f"Displaying: {message} / {twitter}")
+                width = max(len(message), len(twitter))
+                logger.info(
+                    f"Displaying message\n"
+                    f"┌─{'─' * width}─┐\n"
+                    f"│ {message:<{width}} │\n"
+                    f"│ {twitter:<{width}} │\n"
+                    f"└─{'─' * width}─┘"
+                )
                 scroll_message(lcd, message, twitter)
+                logger.info("Message displayed")
                 lcd.clear()
             except queue.Empty:
                 # No message, keep waiting
                 pass
 
     except KeyboardInterrupt:
-        logger.info("Shutting down...")
+        logger.info("Shutting down")
     except Exception as e:
         logger.error(f"Error: {e}")
     finally:
         if client:
             mqtt_client.disconnect(client)
         if lcd:
+            logger.info("Clearing LCD")
             lcd.clear()
+            logger.info("LCD cleared")
+        logger.info("Shutdown complete")
 
 
 if __name__ == "__main__":
